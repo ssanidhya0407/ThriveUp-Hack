@@ -31,7 +31,7 @@ struct NotificationModel {
     var isRead: Bool
 }
 
-struct Speaker: Codable {
+struct Speaker: Codable, Equatable {
     var name: String
     var imageURL: String
 }
@@ -40,7 +40,7 @@ struct Tags: Codable {
     let tag: String
 }
 
-struct EventModel: Codable {
+struct EventModel: Codable, Equatable {
     let eventId: String
     let title: String
     let category: String
@@ -318,9 +318,13 @@ struct Event: Codable {
 struct UserDetails {
     let name: String
     let description: String
-    let contact: String
     let imageUrl: String
+    let contact: String?
+    let githubUrl: String?  // Add this property
+    let linkedinUrl: String?  // Add this property
+    let techStack: String
 }
+
 
 struct EventDataSource {
     static let sampleEvents: [Event] = [

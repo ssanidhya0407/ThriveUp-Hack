@@ -85,6 +85,7 @@
 		7852F6132D456E4A0068F229 /* UpdatesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7852F6122D456E4A0068F229 /* UpdatesViewController.swift */; };
 		7852F6152D456E500068F229 /* PhotosViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7852F6142D456E500068F229 /* PhotosViewController.swift */; };
 		78B8D2D92D38E7510004AD09 /* Instructions in Frameworks */ = {isa = PBXBuildFile; productRef = 78B8D2D82D38E7510004AD09 /* Instructions */; };
+		78B9A1EF2D7BE9A9004B7B78 /* TechStackViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78B9A1EE2D7BE9A9004B7B78 /* TechStackViewController.swift */; };
 		78BE28962D385318002BF1EB /* TagViewControllerDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78BE28952D385318002BF1EB /* TagViewControllerDelegate.swift */; };
 		78ED42F62D400E9800FF3017 /* EventsCardsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78ED42F52D400E9800FF3017 /* EventsCardsViewController.swift */; };
 		78ED42FA2D42B24B00FF3017 /* OrganizerEventListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78ED42F92D42B24B00FF3017 /* OrganizerEventListViewController.swift */; };
@@ -175,6 +176,7 @@
 		7852F6102D456DE50068F229 /* EventContainerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventContainerViewController.swift; sourceTree = "<group>"; };
 		7852F6122D456E4A0068F229 /* UpdatesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdatesViewController.swift; sourceTree = "<group>"; };
 		7852F6142D456E500068F229 /* PhotosViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosViewController.swift; sourceTree = "<group>"; };
+		78B9A1EE2D7BE9A9004B7B78 /* TechStackViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TechStackViewController.swift; sourceTree = "<group>"; };
 		78BE28952D385318002BF1EB /* TagViewControllerDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagViewControllerDelegate.swift; sourceTree = "<group>"; };
 		78ED42F52D400E9800FF3017 /* EventsCardsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventsCardsViewController.swift; sourceTree = "<group>"; };
 		78ED42F92D42B24B00FF3017 /* OrganizerEventListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizerEventListViewController.swift; sourceTree = "<group>"; };
@@ -230,6 +232,7 @@
 		577DA1BC2CE3999000760BFA /* ThriveUp */ = {
 			isa = PBXGroup;
 			children = (
+				78B9A1EE2D7BE9A9004B7B78 /* TechStackViewController.swift */,
 				781DC1CF2D5B771A00322EF3 /* NotificationViewController.swift */,
 				781DC1CB2D5B76A100322EF3 /* NotificationTableViewCell.swift */,
 				782F35782D554CCB00DA461E /* iOSOnboardingViewController.swift */,
@@ -447,6 +450,7 @@
 				78ED42FA2D42B24B00FF3017 /* OrganizerEventListViewController.swift in Sources */,
 				577DA2E82CE8914400760BFA /* QuickAddCollectionViewCell.swift in Sources */,
 				577DA2F02CE898F000760BFA /* UserTabBarController.swift in Sources */,
+				78B9A1EF2D7BE9A9004B7B78 /* TechStackViewController.swift in Sources */,
 				577DA1C22CE3999000760BFA /* EventViewController.swift in Sources */,
 				57D9779B2CE9E13D004B1314 /* RegisteredEventCell.swift in Sources */,
 				39DF783C2CE9B011004B8244 /* BookmarkViewController.swift in Sources */,

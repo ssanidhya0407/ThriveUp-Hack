@@ -5,52 +5,62 @@ import FirebaseAuth
 
 class SwipeViewController: UIViewController, CoachMarksControllerDataSource, CoachMarksControllerDelegate {
     private var eventStack: [EventModel] = []
+    private var userStack: [UserDetails] = []
     private var bookmarkedEvents: [EventModel] = []
+    private var bookmarkedUsers: [UserDetails] = []
     private let db = Firestore.firestore()
-    
+
     private let cardContainerView: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
-    
+
     // CoachMarksController instance for the guided tour
     let coachMarksController = CoachMarksController()
-    let titleLabel = UILabel()
-    let titleStackView = UIStackView()
+    let swipeButton = UIButton(type: .system)
+    let hackathonButton = UIButton(type: .system)
     let filterButton = UIButton(type: .system)
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.systemGray6
-        
+
         setupTitleStackView()
         setupViews()
         setupConstraints()
         fetchEventsFromDatabase()
-        
+        fetchUsersFromDatabase()
+
         // Configure CoachMarksController
         coachMarksController.dataSource = self
         coachMarksController.delegate = self
-        
+
         // Check if it's the user's first time logging in
         if isFirstTimeUser() {
             askForTutorial()
         }
-        
+
         // Observe for notification to show the instructions
         NotificationCenter.default.addObserver(self, selector: #selector(showInstructions), name: NSNotification.Name("ShowInstructions"), object: nil)
     }
-    
+
     @objc private func showInstructions() {
         askForTutorial()
     }
 
     private func setupTitleStackView() {
-        // Configure titleLabel
-        titleLabel.text = "Swipe"
-        titleLabel.font = UIFont.systemFont(ofSize: 36, weight: .bold)
-        titleLabel.textAlignment = .left
+        // Configure swipeButton
+        swipeButton.setTitle("Flick", for: .normal)
+        swipeButton.setTitleColor(.orange, for: .normal)
+        swipeButton.titleLabel?.font = UIFont.systemFont(ofSize: 36, weight: .bold)
+        swipeButton.addTarget(self, action: #selector(handleSwipeButtonTapped), for: .touchUpInside)
+
+        // Configure hackathonButton
+        hackathonButton.setTitle("HackMate", for: .normal)
+        hackathonButton.setTitleColor(.gray, for: .normal)
+        hackathonButton.titleLabel?.font = UIFont.systemFont(ofSize: 36, weight: .bold)
+        hackathonButton.addTarget(self, action: #selector(handleHackathonButtonTapped), for: .touchUpInside)
 
         // Configure filterButton
         filterButton.setImage(UIImage(systemName: "line.horizontal.3.decrease.circle"), for: .normal)
@@ -58,14 +68,11 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         filterButton.addTarget(self, action: #selector(handleFilterButtonTapped), for: .touchUpInside)
 
         // Configure titleStackView
+        let titleStackView = UIStackView(arrangedSubviews: [swipeButton, hackathonButton, filterButton])
         titleStackView.axis = .horizontal
         titleStackView.alignment = .center
         titleStackView.distribution = .equalSpacing
         titleStackView.spacing = 8
-
-        // Add titleLabel and filterButton to titleStackView
-        titleStackView.addArrangedSubview(titleLabel)
-        titleStackView.addArrangedSubview(filterButton)
 
         // Add titleStackView to the view
         view.addSubview(titleStackView)
@@ -76,6 +83,18 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
             titleStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             titleStackView.heightAnchor.constraint(equalToConstant: 40)
         ])
+    }
+
+    @objc private func handleSwipeButtonTapped() {
+        swipeButton.setTitleColor(.orange, for: .normal)
+        hackathonButton.setTitleColor(.gray, for: .normal)
+        displayTopCards(for: .swipe)
+    }
+
+    @objc private func handleHackathonButtonTapped() {
+        swipeButton.setTitleColor(.gray, for: .normal)
+        hackathonButton.setTitleColor(.orange, for: .normal)
+        displayTopCards(for: .hackathon)
     }
 
     @objc private func handleFilterButtonTapped() {
@@ -97,29 +116,29 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
         present(alert, animated: true, completion: nil)
     }
-    
+
     private func setupViews() {
         view.addSubview(cardContainerView)
     }
-    
+
     private func setupConstraints() {
         NSLayoutConstraint.activate([
-            cardContainerView.topAnchor.constraint(equalTo: titleStackView.bottomAnchor, constant: 8),
+            cardContainerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 56),
             cardContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 10),
             cardContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -10),
             cardContainerView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -10)
         ])
     }
-    
+
     private func fetchEventsFromDatabase() {
         db.collection("events").getDocuments { [weak self] (snapshot, error) in
             if let error = error {
                 print("Error fetching events: \(error.localizedDescription)")
                 return
             }
-            
+
             var fetchedEvents: [EventModel] = []
-            
+
             snapshot?.documents.forEach { document in
                 do {
                     let jsonData = try JSONSerialization.data(withJSONObject: document.data())
@@ -129,68 +148,149 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
                     print("Error decoding event: \(error.localizedDescription)")
                 }
             }
-            
+
             self?.eventStack = fetchedEvents.reversed()
-            
+
             DispatchQueue.main.async {
-                self?.displayTopCards()
+                self?.displayTopCards(for: .swipe)
             }
         }
     }
-    
-    private func displayTopCards() {
+
+
+    private func fetchUsersFromDatabase() {
+        db.collection("users").getDocuments { [weak self] (snapshot, error) in
+            if let error = error {
+                print("Error fetching users: \(error.localizedDescription)")
+                return
+            }
+
+            var fetchedUsers: [UserDetails] = []
+
+            snapshot?.documents.forEach { document in
+                let data = document.data()
+                
+                let name = data["name"] as? String ?? ""
+                let description = data["Description"] as? String ?? "No Description Available"
+                let imageUrl = data["profileImageURL"] as? String ?? ""
+                let githubUrl = data["githubUrl"] as? String ?? "Not Available"
+                let linkedinUrl = data["linkedinUrl"] as? String ?? "Not Available"
+                let techStack = data["techStack"] as? String ?? "Unknown"
+                let contact = data["ContactDetails"] as? String ?? "Not Available"
+
+                let user = UserDetails(
+                    name: name,
+                    description: description,
+                    imageUrl: imageUrl,
+                    contact: contact, githubUrl: githubUrl,
+                    linkedinUrl: linkedinUrl,
+                    techStack: techStack
+                )
+                
+                fetchedUsers.append(user)
+            }
+
+            self?.userStack = fetchedUsers.reversed()
+            self?.displayTopUserCards()
+        }
+    }
+
+
+
+    private func displayTopCards(for category: Category) {
         cardContainerView.subviews.forEach { $0.removeFromSuperview() }
-        
-        for (index, event) in eventStack.suffix(3).enumerated() {
-            let cardView = createCard(for: event)
+
+        let cards: [UIView]
+        switch category {
+        case .swipe:
+            cards = eventStack.suffix(3).map { createCard(for: $0) }
+        case .hackathon:
+            cards = userStack.suffix(3).map { createCard(for: $0) }
+        }
+
+        for cardView in cards {
             cardContainerView.addSubview(cardView)
             cardView.translatesAutoresizingMaskIntoConstraints = false
-            
+
             NSLayoutConstraint.activate([
                 cardView.leadingAnchor.constraint(equalTo: cardContainerView.leadingAnchor),
                 cardView.trailingAnchor.constraint(equalTo: cardContainerView.trailingAnchor),
                 cardView.topAnchor.constraint(equalTo: cardContainerView.topAnchor),
                 cardView.bottomAnchor.constraint(equalTo: cardContainerView.bottomAnchor)
             ])
-            
+
             cardContainerView.sendSubviewToBack(cardView)
         }
     }
-    
+
     private func createCard(for event: EventModel) -> UIView {
         let cardView = FlippableCardView(event: event)
         cardView.translatesAutoresizingMaskIntoConstraints = false
 
         let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
         cardView.addGestureRecognizer(panGesture)
-        
+
         let bookmarkButton = createButton(imageName: "bookmark.fill", tintColor: .systemOrange)
         let discardButton = createButton(imageName: "xmark", tintColor: .systemRed)
-        
+
         bookmarkButton.alpha = 0 // Initially hide the bookmark button
         discardButton.alpha = 0 // Initially hide the discard button
-        
+
         cardView.addSubview(bookmarkButton)
         cardView.addSubview(discardButton)
-        
+
         NSLayoutConstraint.activate([
             bookmarkButton.centerYAnchor.constraint(equalTo: cardView.centerYAnchor),
             bookmarkButton.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -20),
             bookmarkButton.widthAnchor.constraint(equalToConstant: 60),
             bookmarkButton.heightAnchor.constraint(equalToConstant: 60),
-            
+
             discardButton.centerYAnchor.constraint(equalTo: cardView.centerYAnchor),
             discardButton.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 20),
             discardButton.widthAnchor.constraint(equalToConstant: 60),
             discardButton.heightAnchor.constraint(equalToConstant: 60)
         ])
-        
+
         cardView.bookmarkButton = bookmarkButton
         cardView.discardButton = discardButton
-        
+
         return cardView
     }
-    
+
+    private func createCard(for user: UserDetails) -> UIView {
+        let cardView = UserProfileCardView(user: user)
+        cardView.translatesAutoresizingMaskIntoConstraints = false
+
+        let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handleUserSwipe(_:)))
+        cardView.addGestureRecognizer(panGesture)
+
+        let bookmarkButton = createButton(imageName: "bookmark.fill", tintColor: .systemOrange)
+        let discardButton = createButton(imageName: "xmark", tintColor: .systemRed)
+
+        bookmarkButton.alpha = 0 // Initially hide the bookmark button
+        discardButton.alpha = 0 // Initially hide the discard button
+
+        cardView.bookmarkButton = bookmarkButton
+        cardView.discardButton = discardButton
+
+        cardView.addSubview(bookmarkButton)
+        cardView.addSubview(discardButton)
+
+        NSLayoutConstraint.activate([
+            bookmarkButton.centerYAnchor.constraint(equalTo: cardView.centerYAnchor),
+            bookmarkButton.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -20),
+            bookmarkButton.widthAnchor.constraint(equalToConstant: 60),
+            bookmarkButton.heightAnchor.constraint(equalToConstant: 60),
+
+            discardButton.centerYAnchor.constraint(equalTo: cardView.centerYAnchor),
+            discardButton.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: 20),
+            discardButton.widthAnchor.constraint(equalToConstant: 60),
+            discardButton.heightAnchor.constraint(equalToConstant: 60)
+        ])
+
+        return cardView
+    }
+
     private func createButton(imageName: String, tintColor: UIColor) -> UIButton {
         let button = UIButton(type: .system)
         button.setImage(UIImage(systemName: imageName), for: .normal)
@@ -205,7 +305,7 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         guard let cardView = gesture.view as? FlippableCardView else { return }
         let translation = gesture.translation(in: view)
         let xFromCenter = translation.x
-        
+
         switch gesture.state {
         case .began:
             // Hide both buttons initially
@@ -215,7 +315,7 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
             cardView.transform = CGAffineTransform(translationX: xFromCenter, y: 0)
                 .rotated(by: xFromCenter / 200)
             cardView.alpha = 1 - abs(xFromCenter) / view.frame.width
-            
+
             // Show the appropriate button based on swipe direction
             if xFromCenter > 0 {
                 cardView.bookmarkButton?.alpha = 1
@@ -224,7 +324,7 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
                 cardView.bookmarkButton?.alpha = 0
                 cardView.discardButton?.alpha = 1
             }
-            
+
         case .ended:
             if xFromCenter > 100 {
                 bookmarkEvent(for: cardView.event)
@@ -250,137 +350,412 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         }
     }
 
+    @objc private func handleUserSwipe(_ gesture: UIPanGestureRecognizer) {
+        guard let cardView = gesture.view as? UserProfileCardView else { return }
+        let translation = gesture.translation(in: view)
+        let xFromCenter = translation.x
+
+        switch gesture.state {
+        case .began:
+            // Hide both buttons initially
+            cardView.bookmarkButton?.alpha = 0
+            cardView.discardButton?.alpha = 0
+        case .changed:
+            cardView.transform = CGAffineTransform(translationX: xFromCenter, y: 0)
+                .rotated(by: xFromCenter / 200)
+            cardView.alpha = 1 - abs(xFromCenter) / view.frame.width
+
+            // Show the appropriate button based on swipe direction
+            if xFromCenter > 0 {
+                cardView.bookmarkButton?.alpha = 1
+                cardView.discardButton?.alpha = 0
+            } else {
+                cardView.bookmarkButton?.alpha = 0
+                cardView.discardButton?.alpha = 1
+            }
+
+        case .ended:
+            if xFromCenter > 100 {
+                bookmarkUser(for: cardView.user)
+                animateUserCardOffScreen(cardView, toRight: true)
+            } else if xFromCenter < -100 {
+                discardUser(for: cardView.user)
+                animateUserCardOffScreen(cardView, toRight: false)
+            } else {
+                UIView.animate(withDuration: 0.3) {
+                    cardView.transform = CGAffineTransform.identity
+                    cardView.alpha = 1
+                    cardView.bookmarkButton?.alpha = 0
+                    cardView.discardButton?.alpha = 0
+                }
+            }
+        default:
+            UIView.animate(withDuration: 0.3) {
+                cardView.transform = CGAffineTransform.identity
+                cardView.alpha = 1
+                cardView.bookmarkButton?.alpha = 0
+                cardView.discardButton?.alpha = 0
+            }
+        }
+    }
+
+    private func bookmarkUser(for user: UserDetails) {
+        bookmarkedUsers.append(user)
+        // Optionally: Save the bookmarked user to a database or UserDefaults
+    }
+
+    private func discardUser(for user: UserDetails) {
+        userStack.removeAll { $0.name == user.name }
+        displayTopUserCards()
+    }
+
     private func animateCardOffScreen(_ cardView: FlippableCardView, toRight: Bool) {
         UIView.animate(withDuration: 0.5, animations: {
-            let direction: CGFloat = toRight ? 1 : -1
-            cardView.transform = CGAffineTransform(translationX: direction * self.view.frame.width, y: 0)
+            cardView.transform = CGAffineTransform(translationX: toRight ? self.view.frame.width : -self.view.frame.width, y: 0)
             cardView.alpha = 0
         }) { _ in
             cardView.removeFromSuperview()
-            self.displayTopCards()
+            if let index = self.eventStack.firstIndex(of: cardView.event) {
+                self.eventStack.remove(at: index)
+            }
+            self.displayTopCards(for: .swipe)
+        }
+    }
+
+    private func animateUserCardOffScreen(_ cardView: UserProfileCardView, toRight: Bool) {
+        UIView.animate(withDuration: 0.5, animations: {
+            cardView.transform = CGAffineTransform(translationX: toRight ? self.view.frame.width : -self.view.frame.width, y: 0)
+            cardView.alpha = 0
+        }) { _ in
+            cardView.removeFromSuperview()
+            if let index = self.userStack.firstIndex(where: { $0.name == cardView.user.name }) {
+                self.userStack.remove(at: index)
+            }
+            self.displayTopUserCards()
         }
     }
 
     private func bookmarkEvent(for event: EventModel) {
-        guard let userId = Auth.auth().currentUser?.uid else {
-            print("User is not authenticated")
-            return
-        }
-
-        let eventData: [String: Any] = [
-            "userId": userId,
-            "eventId": event.eventId
-        ]
-        
-        db.collection("swipedeventsdb").addDocument(data: eventData) { error in
-            if let error = error {
-                print("Error saving bookmarked event: \(error.localizedDescription)")
-            }
-        }
-        
-        eventStack.removeAll { $0.eventId == event.eventId }
-        displayTopCards()
+        bookmarkedEvents.append(event)
     }
 
-    private func fetchBookmarkedEvents() -> [EventModel] {
-        if let data = UserDefaults.standard.data(forKey: "bookmarkedEvents1"),
-           let decodedEvents = try? JSONDecoder().decode([EventModel].self, from: data) {
-            return decodedEvents
-        }
-        return []
-    }
-
-    private func saveBookmarkedEvents(_ events: [EventModel]) {
-        if let encodedData = try? JSONEncoder().encode(events) {
-            UserDefaults.standard.set(encodedData, forKey: "bookmarkedEvents1")
-        }
-    }
-    
     private func discardEvent(for event: EventModel) {
         eventStack.removeAll { $0.eventId == event.eventId }
-        displayTopCards()
+        displayTopCards(for: .swipe)
     }
 
-    // Check if it's the user's first time
     private func isFirstTimeUser() -> Bool {
-        guard let userId = Auth.auth().currentUser?.uid else {
-            return false
-        }
-        return !UserDefaults.standard.bool(forKey: "hasSeenGuidedTour_\(userId)")
+        // Implement logic to check if it's the first time user
+        return false
     }
-    
+
+    private func displayTopUserCards() {
+        cardContainerView.subviews.forEach { $0.removeFromSuperview() }
+
+        guard !userStack.isEmpty else { return }
+
+        let topUsers = userStack.suffix(3)
+        for user in topUsers {
+            let userCardView = UserProfileCardView(user: user)
+            userCardView.translatesAutoresizingMaskIntoConstraints = false
+            cardContainerView.addSubview(userCardView)
+
+            NSLayoutConstraint.activate([
+                userCardView.topAnchor.constraint(equalTo: cardContainerView.topAnchor),
+                userCardView.bottomAnchor.constraint(equalTo: cardContainerView.bottomAnchor),
+                userCardView.leadingAnchor.constraint(equalTo: cardContainerView.leadingAnchor),
+                userCardView.trailingAnchor.constraint(equalTo: cardContainerView.trailingAnchor)
+            ])
+
+            let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handleUserSwipe(_:)))
+            userCardView.addGestureRecognizer(panGesture)
+
+            cardContainerView.sendSubviewToBack(userCardView)
+        }
+    }
+
     private func askForTutorial() {
         let alert = UIAlertController(title: "Welcome!", message: "Would you like to take a quick tour of the app?", preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Yes", style: .default, handler: { _ in
-            self.setHasSeenGuidedTour()
             self.startGuidedTour()
         }))
-        alert.addAction(UIAlertAction(title: "No", style: .cancel, handler: { _ in
-            self.setHasSeenGuidedTour()
-        }))
+        alert.addAction(UIAlertAction(title: "No", style: .cancel, handler: nil))
         present(alert, animated: true, completion: nil)
     }
 
-    private func setHasSeenGuidedTour() {
-        guard let userId = Auth.auth().currentUser?.uid else {
-            return
-        }
-        UserDefaults.standard.set(true, forKey: "hasSeenGuidedTour_\(userId)")
-    }
-    
-    // Start the guided tour
     func startGuidedTour() {
         coachMarksController.start(in: .window(over: self))
     }
 
     // MARK: - CoachMarksControllerDataSource
+
     func numberOfCoachMarks(for coachMarksController: CoachMarksController) -> Int {
-        return 3 // Number of steps in the tour
+        return 3
     }
 
     func coachMarksController(_ coachMarksController: CoachMarksController, coachMarkAt index: Int) -> CoachMark {
         switch index {
         case 0:
-            return coachMarksController.helper.makeCoachMark(for: titleStackView)
+            return coachMarksController.helper.makeCoachMark(for: swipeButton)
         case 1:
-            return coachMarksController.helper.makeCoachMark(for: filterButton)
+            return coachMarksController.helper.makeCoachMark(for: hackathonButton)
         case 2:
-            return coachMarksController.helper.makeCoachMark(for: cardContainerView)
+            return coachMarksController.helper.makeCoachMark(for: filterButton)
         default:
             return coachMarksController.helper.makeCoachMark()
         }
     }
 
-    func coachMarksController(
-        _ coachMarksController: CoachMarksController,
-        coachMarkViewsAt index: Int,
-        madeFrom coachMark: CoachMark
-    ) -> (bodyView: (UIView & CoachMarkBodyView), arrowView: (UIView & CoachMarkArrowView)?) {
-        // Create the default coach views using the library's helper method
-        let coachViews = coachMarksController.helper.makeDefaultCoachViews(
-            withArrow: true,
-            arrowOrientation: coachMark.arrowOrientation
-        )
-
-        // Customize the coach views based on the index
+    func coachMarksController(_ coachMarksController: CoachMarksController, coachMarkViewsAt index: Int, madeFrom coachMark: CoachMark) -> (bodyView: UIView & CoachMarkBodyView, arrowView: (UIView & CoachMarkArrowView)?) {
+        let hintText: String
         switch index {
         case 0:
-            coachViews.bodyView.hintLabel.text = "This is the Swipe screen and Edit Interests button."
-            coachViews.bodyView.nextLabel.text = "Next"
+            hintText = "Tap here to swipe through events."
         case 1:
-            coachViews.bodyView.hintLabel.text = "This is the Edit Interests button."
-            coachViews.bodyView.nextLabel.text = "Next"
+            hintText = "Tap here to view hackathon matches."
         case 2:
-            coachViews.bodyView.hintLabel.text = "Swipe left to dismiss and right to bookmark events."
-            coachViews.bodyView.nextLabel.text = "Got it!"
+            hintText = "Tap here to filter your interests."
         default:
-            break
+            hintText = ""
         }
 
-        // Return the customized coach views
+        let coachViews = coachMarksController.helper.makeDefaultCoachViews(withArrow: true, arrowOrientation: coachMark.arrowOrientation)
+        coachViews.bodyView.hintLabel.text = hintText
+        coachViews.bodyView.nextLabel.text = "Next"
+
         return (bodyView: coachViews.bodyView, arrowView: coachViews.arrowView)
     }
 }
+        
+enum Category {
+    case swipe
+    case hackathon
+}
+
+
+class UserProfileCardView: UIView {
+    let user: UserDetails
+    var bookmarkButton: UIButton?
+    var discardButton: UIButton?
+    var profileImageView: UIImageView!
+    var nameLabel: UILabel!
+    var descriptionLabel: UILabel!
+    var githubLabel: UILabel!
+    var linkedInLabel: UILabel!
+    var githubButton: UIButton!
+    var linkedInButton: UIButton!
+    var techStackTitleLabel: UILabel!
+    var techStackLabel: UILabel!
+    var techStackView: UIView!
+    var techStackGridView: UIStackView!
+
+    init(user: UserDetails) {
+        self.user = user
+        super.init(frame: .zero)
+        setupViews()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setupViews() {
+        backgroundColor = .white
+        layer.cornerRadius = 20
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.3
+        layer.shadowOffset = CGSize(width: 0, height: 5)
+        layer.shadowRadius = 10
+        layer.masksToBounds = false
+
+        profileImageView = UIImageView()
+        profileImageView.contentMode = .scaleAspectFill
+        profileImageView.clipsToBounds = true
+        profileImageView.layer.cornerRadius = 40
+        profileImageView.layer.borderWidth = 2
+        profileImageView.layer.borderColor = UIColor.white.cgColor
+        profileImageView.translatesAutoresizingMaskIntoConstraints = false
+        profileImageView.isUserInteractionEnabled = true
+
+        if let url = URL(string: user.imageUrl) {
+            profileImageView.loadImage(from: url)
+        }
+
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(enlargeProfileImage))
+        profileImageView.addGestureRecognizer(tapGesture)
+
+        nameLabel = UILabel()
+        nameLabel.text = user.name
+        nameLabel.font = UIFont.systemFont(ofSize: 28, weight: .bold)
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        descriptionLabel = UILabel()
+        descriptionLabel.text = user.description
+        descriptionLabel.font = UIFont.systemFont(ofSize: 16)
+        descriptionLabel.numberOfLines = 0
+        descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        githubLabel = UILabel()
+        githubLabel.text = "GitHub: "
+        githubLabel.font = UIFont.systemFont(ofSize: 16)
+        githubLabel.textColor = .blue
+        githubLabel.translatesAutoresizingMaskIntoConstraints = false
+        githubLabel.isUserInteractionEnabled = true
+        let githubTapGesture = UITapGestureRecognizer(target: self, action: #selector(openGithubUrl))
+        githubLabel.addGestureRecognizer(githubTapGesture)
+
+        linkedInLabel = UILabel()
+        linkedInLabel.text = "LinkedIn: "
+        linkedInLabel.font = UIFont.systemFont(ofSize: 16)
+        linkedInLabel.textColor = .blue
+        linkedInLabel.translatesAutoresizingMaskIntoConstraints = false
+        linkedInLabel.isUserInteractionEnabled = true
+        let linkedInTapGesture = UITapGestureRecognizer(target: self, action: #selector(openLinkedInUrl))
+        linkedInLabel.addGestureRecognizer(linkedInTapGesture)
+
+        githubButton = createIconButton(imageName: "logo.github", url: user.githubUrl ?? "")
+        linkedInButton = createIconButton(imageName: "logo.linkedin", url: user.linkedinUrl ?? "")
+
+        techStackTitleLabel = UILabel()
+        techStackTitleLabel.text = "Tech Stack"
+        techStackTitleLabel.font = UIFont.systemFont(ofSize: 22, weight: .bold)
+        techStackTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        techStackView = UIView()
+        techStackView.translatesAutoresizingMaskIntoConstraints = false
+
+        techStackGridView = UIStackView()
+        techStackGridView.axis = .vertical
+        techStackGridView.spacing = 16
+        techStackGridView.distribution = .fillEqually
+        techStackGridView.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(profileImageView)
+        addSubview(nameLabel)
+        addSubview(descriptionLabel)
+        addSubview(githubLabel)
+        addSubview(linkedInLabel)
+        addSubview(githubButton)
+        addSubview(linkedInButton)
+        addSubview(techStackTitleLabel)
+        addSubview(techStackView)
+        techStackView.addSubview(techStackGridView)
+
+        NSLayoutConstraint.activate([
+            profileImageView.topAnchor.constraint(equalTo: topAnchor, constant: 16),
+            profileImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            profileImageView.widthAnchor.constraint(equalToConstant: 80),
+            profileImageView.heightAnchor.constraint(equalToConstant: 80),
+
+            nameLabel.topAnchor.constraint(equalTo: profileImageView.bottomAnchor, constant: 8),
+            nameLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            nameLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+
+            descriptionLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 8),
+            descriptionLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            descriptionLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+
+            githubLabel.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 16),
+            githubLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            githubLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+
+            linkedInLabel.topAnchor.constraint(equalTo: githubLabel.bottomAnchor, constant: 8),
+            linkedInLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            linkedInLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+
+            techStackTitleLabel.topAnchor.constraint(equalTo: linkedInLabel.bottomAnchor, constant: 32),
+            techStackTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            techStackTitleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+
+            techStackView.topAnchor.constraint(equalTo: techStackTitleLabel.bottomAnchor, constant: 4),
+            techStackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            techStackView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            techStackView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16),
+
+            techStackGridView.topAnchor.constraint(equalTo: techStackView.topAnchor),
+            techStackGridView.leadingAnchor.constraint(equalTo: techStackView.leadingAnchor),
+            techStackGridView.trailingAnchor.constraint(equalTo: techStackView.trailingAnchor),
+            techStackGridView.bottomAnchor.constraint(equalTo: techStackView.bottomAnchor)
+        ])
+
+        setupTechStack()
+    }
+
+    private func setupTechStack() {
+        techStackGridView.arrangedSubviews.forEach { $0.removeFromSuperview() } // Clear existing views
+
+        let techStackItems = user.techStack.components(separatedBy: ", ")
+        let columns = 2
+        var currentRowStack: UIStackView?
+
+        for (index, item) in techStackItems.enumerated() {
+            if index % columns == 0 {
+                currentRowStack = UIStackView()
+                currentRowStack?.axis = .horizontal
+                currentRowStack?.spacing = 12
+                currentRowStack?.distribution = .fillEqually
+                techStackGridView.addArrangedSubview(currentRowStack!)
+            }
+
+            let button = UIButton(type: .system)
+            button.setTitle(item, for: .normal)
+            button.titleLabel?.font = UIFont.systemFont(ofSize: 14)
+            button.backgroundColor = UIColor.systemGray5
+            button.layer.cornerRadius = 8
+            button.clipsToBounds = true
+
+            currentRowStack?.addArrangedSubview(button)
+        }
+    }
+
+    @objc private func enlargeProfileImage() {
+        // Implement the logic to enlarge the profile image when tapped
+    }
+
+    private func createIconButton(imageName: String, url: String) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setImage(UIImage(systemName: imageName), for: .normal)
+        button.tintColor = .black
+        button.backgroundColor = UIColor(white: 1, alpha: 0.75)
+        button.layer.cornerRadius = 20
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(openURL(_:)), for: .touchUpInside)
+        button.accessibilityLabel = url
+        return button
+    }
+
+    @objc private func openURL(_ sender: UIButton) {
+        if let urlString = sender.accessibilityLabel, let url = URL(string: urlString) {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    @objc private func openGithubUrl() {
+        if let url = URL(string: user.githubUrl ?? "") {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    @objc private func openLinkedInUrl() {
+        if let url = URL(string: user.linkedinUrl ?? "") {
+            UIApplication.shared.open(url)
+        }
+    }
+}
+
+extension UIImageView {
+    func loadImage(from url: URL) {
+        DispatchQueue.global().async {
+            if let data = try? Data(contentsOf: url) {
+                DispatchQueue.main.async {
+                    self.image = UIImage(data: data)
+                }
+            }
+        }
+    }
+}
+
+
 
 class FlippableCardView: UIView, UITableViewDataSource, UITableViewDelegate {
     private var isFlipped = false
