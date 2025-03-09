@@ -535,7 +535,6 @@ enum Category {
 }
 
 
-
 class UserProfileCardView: UIView {
     var user: UserDetails
     var bookmarkButton: UIButton?
@@ -752,9 +751,14 @@ class UserProfileCardView: UIView {
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
 
         let titleLabel = UILabel()
-        titleLabel.text = title
         titleLabel.font = UIFont.systemFont(ofSize: 16)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        if let profileName = url.split(separator: "/").last {
+            titleLabel.text = "\(title) Profile /\(profileName)"
+        } else {
+            titleLabel.text = title
+        }
 
         tabView.addSubview(iconImageView)
         tabView.addSubview(titleLabel)
@@ -820,16 +824,32 @@ class UserProfileCardView: UIView {
                 return
             }
 
-            if let githubUrl = data["githubUrl"] as? String {
+            if let githubUrl = data["githubUrl"] as? String, !githubUrl.isEmpty {
                 print("Fetched GitHub URL: \(githubUrl)")
                 self?.user.githubUrl = githubUrl
                 self?.githubTabView.accessibilityLabel = githubUrl
+                if let githubLabel = self?.githubTabView.subviews.compactMap({ $0 as? UILabel }).first,
+                   let profileName = githubUrl.split(separator: "/").last {
+                    githubLabel.text = "GitHub Account"
+                }
+            } else {
+                if let githubLabel = self?.githubTabView.subviews.compactMap({ $0 as? UILabel }).first {
+                    githubLabel.text = "Not Available"
+                }
             }
 
-            if let linkedInUrl = data["linkedinUrl"] as? String {
+            if let linkedInUrl = data["linkedinUrl"] as? String, !linkedInUrl.isEmpty {
                 print("Fetched LinkedIn URL: \(linkedInUrl)")
                 self?.user.linkedinUrl = linkedInUrl
                 self?.linkedInTabView.accessibilityLabel = linkedInUrl
+                if let linkedInLabel = self?.linkedInTabView.subviews.compactMap({ $0 as? UILabel }).first,
+                   let profileName = linkedInUrl.split(separator: "/").last {
+                    linkedInLabel.text = "LinkedIn Profile"
+                }
+            } else {
+                if let linkedInLabel = self?.linkedInTabView.subviews.compactMap({ $0 as? UILabel }).first {
+                    linkedInLabel.text = "Not Available"
+                }
             }
 
             if let about = data["Description"] as? String {
@@ -851,7 +871,6 @@ extension UIImageView {
         }
     }
 }
-
 
 
 

@@ -327,6 +327,14 @@ struct UserDetails {
 }
 
 
+struct RequestDetails: Codable {
+    var id: String
+    var fromUserId: String
+    var toUserId: String
+    var status: String
+}
+
+
 struct EventDataSource {
     static let sampleEvents: [Event] = [
         Event(id: "1", title: "Samay Raina Comedy Show", description: "Laugh out loud with Samay Raina's witty comedy.", imageName: "SamayRaina", category: "Favourites"),
