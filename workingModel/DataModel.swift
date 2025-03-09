@@ -202,6 +202,14 @@ struct ChatMessage {
     }
 }
 
+
+struct AcceptRequest {
+    let id: String
+    let senderId: String
+    let receiverId: String
+    let timestamp: Date
+}
+
 // ChatThread model to store a conversation
 struct ChatThread {
     let id: String

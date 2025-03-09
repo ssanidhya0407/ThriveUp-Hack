@@ -87,6 +87,9 @@
 		78B8D2D92D38E7510004AD09 /* Instructions in Frameworks */ = {isa = PBXBuildFile; productRef = 78B8D2D82D38E7510004AD09 /* Instructions */; };
 		78B9A1EF2D7BE9A9004B7B78 /* TechStackViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78B9A1EE2D7BE9A9004B7B78 /* TechStackViewController.swift */; };
 		78BE28962D385318002BF1EB /* TagViewControllerDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78BE28952D385318002BF1EB /* TagViewControllerDelegate.swift */; };
+		78E2BF1C2D7D71150071778A /* AcceptRequestViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E2BF1B2D7D710C0071778A /* AcceptRequestViewController.swift */; };
+		78E2BF242D7D71D80071778A /* AcceptRequestCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E2BF232D7D71D20071778A /* AcceptRequestCell.swift */; };
+		78E2BF272D7D77BF0071778A /* AcceptRequestCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E2BF262D7D77B70071778A /* AcceptRequestCardView.swift */; };
 		78ED42F62D400E9800FF3017 /* EventsCardsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78ED42F52D400E9800FF3017 /* EventsCardsViewController.swift */; };
 		78ED42FA2D42B24B00FF3017 /* OrganizerEventListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78ED42F92D42B24B00FF3017 /* OrganizerEventListViewController.swift */; };
 		78ED43002D42C14800FF3017 /* FirestoreChatManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78ED42FF2D42C14800FF3017 /* FirestoreChatManager.swift */; };
@@ -178,6 +181,9 @@
 		7852F6142D456E500068F229 /* PhotosViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosViewController.swift; sourceTree = "<group>"; };
 		78B9A1EE2D7BE9A9004B7B78 /* TechStackViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TechStackViewController.swift; sourceTree = "<group>"; };
 		78BE28952D385318002BF1EB /* TagViewControllerDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagViewControllerDelegate.swift; sourceTree = "<group>"; };
+		78E2BF1B2D7D710C0071778A /* AcceptRequestViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcceptRequestViewController.swift; sourceTree = "<group>"; };
+		78E2BF232D7D71D20071778A /* AcceptRequestCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcceptRequestCell.swift; sourceTree = "<group>"; };
+		78E2BF262D7D77B70071778A /* AcceptRequestCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcceptRequestCardView.swift; sourceTree = "<group>"; };
 		78ED42F52D400E9800FF3017 /* EventsCardsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventsCardsViewController.swift; sourceTree = "<group>"; };
 		78ED42F92D42B24B00FF3017 /* OrganizerEventListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizerEventListViewController.swift; sourceTree = "<group>"; };
 		78ED42FF2D42C14800FF3017 /* FirestoreChatManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreChatManager.swift; sourceTree = "<group>"; };
@@ -232,6 +238,9 @@
 		577DA1BC2CE3999000760BFA /* ThriveUp */ = {
 			isa = PBXGroup;
 			children = (
+				78E2BF262D7D77B70071778A /* AcceptRequestCardView.swift */,
+				78E2BF232D7D71D20071778A /* AcceptRequestCell.swift */,
+				78E2BF1B2D7D710C0071778A /* AcceptRequestViewController.swift */,
 				78B9A1EE2D7BE9A9004B7B78 /* TechStackViewController.swift */,
 				781DC1CF2D5B771A00322EF3 /* NotificationViewController.swift */,
 				781DC1CB2D5B76A100322EF3 /* NotificationTableViewCell.swift */,
@@ -456,12 +465,14 @@
 				39DF783C2CE9B011004B8244 /* BookmarkViewController.swift in Sources */,
 				57D977AB2CEC89C7004B1314 /* UnauthenViewController.swift in Sources */,
 				57CDC67A2D30475900836984 /* RegistrationTableViewCell.swift in Sources */,
+				78E2BF272D7D77BF0071778A /* AcceptRequestCardView.swift in Sources */,
 				57CDC6782D30451000836984 /* RegistrationsListViewController.swift in Sources */,
 				57D977BB2CEC9EF3004B1314 /* PostEventViewController.swift in Sources */,
 				7852F6132D456E4A0068F229 /* UpdatesViewController.swift in Sources */,
 				57D977A92CEB881B004B1314 /* SplashViewController.swift in Sources */,
 				577DA1D22CE3BDBB00760BFA /* DataModel.swift in Sources */,
 				57D977A32CEB7647004B1314 /* OnboardingViewController.swift in Sources */,
+				78E2BF1C2D7D71150071778A /* AcceptRequestViewController.swift in Sources */,
 				577DA2E42CE890BF00760BFA /* ChatCell.swift in Sources */,
 				7852F6042D43F7C90068F229 /* OrganiserChatViewController.swift in Sources */,
 				78ED42F62D400E9800FF3017 /* EventsCardsViewController.swift in Sources */,
@@ -487,6 +498,7 @@
 				7852F5FE2D43C81A0068F229 /* TicketViewController.swift in Sources */,
 				577DA2F42CE8A82900760BFA /* GeneralTabbarController.swift in Sources */,
 				577DA1DA2CE3DA1800760BFA /* CategoryButtonCell.swift in Sources */,
+				78E2BF242D7D71D80071778A /* AcceptRequestCell.swift in Sources */,
 				57D977932CE8BD54004B1314 /* ProfileViewController.swift in Sources */,
 				57D9779F2CEB1397004B1314 /* PhotoCell.swift in Sources */,
 				7852F6022D43F72C0068F229 /* OrganiserEventDetailViewController.swift in Sources */,

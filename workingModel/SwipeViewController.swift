@@ -7,6 +7,7 @@ import FirebaseStorage
 class SwipeViewController: UIViewController, CoachMarksControllerDataSource, CoachMarksControllerDelegate {
     private var eventStack: [EventModel] = []
     private var userStack: [UserDetails] = []
+    private var acceptRequests: [AcceptRequest] = []
     private var bookmarkedEvents: [EventModel] = []
     private var bookmarkedUsers: [UserDetails] = []
     private let db = Firestore.firestore()
@@ -22,6 +23,7 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
     let swipeButton = UIButton(type: .system)
     let hackathonButton = UIButton(type: .system)
     let filterButton = UIButton(type: .system)
+    let acceptRequestsButton = UIButton(type: .system)
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -32,6 +34,7 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         setupConstraints()
         fetchEventsFromDatabase()
         fetchUsersFromDatabase()
+        fetchAcceptRequests()
 
         // Configure CoachMarksController
         coachMarksController.dataSource = self
@@ -68,8 +71,14 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         filterButton.tintColor = .black
         filterButton.addTarget(self, action: #selector(handleFilterButtonTapped), for: .touchUpInside)
 
+        // Configure acceptRequestsButton
+        acceptRequestsButton.setTitle("Requests", for: .normal)
+        acceptRequestsButton.setTitleColor(.gray, for: .normal)
+        acceptRequestsButton.titleLabel?.font = UIFont.systemFont(ofSize: 36, weight: .bold)
+        acceptRequestsButton.addTarget(self, action: #selector(handleAcceptRequestsButtonTapped), for: .touchUpInside)
+
         // Configure titleStackView
-        let titleStackView = UIStackView(arrangedSubviews: [swipeButton, hackathonButton, filterButton])
+        let titleStackView = UIStackView(arrangedSubviews: [swipeButton, hackathonButton, filterButton, acceptRequestsButton])
         titleStackView.axis = .horizontal
         titleStackView.alignment = .center
         titleStackView.distribution = .equalSpacing
@@ -89,12 +98,14 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
     @objc private func handleSwipeButtonTapped() {
         swipeButton.setTitleColor(.orange, for: .normal)
         hackathonButton.setTitleColor(.gray, for: .normal)
+        acceptRequestsButton.setTitleColor(.gray, for: .normal)
         displayTopCards(for: .swipe)
     }
 
     @objc private func handleHackathonButtonTapped() {
         swipeButton.setTitleColor(.gray, for: .normal)
         hackathonButton.setTitleColor(.orange, for: .normal)
+        acceptRequestsButton.setTitleColor(.gray, for: .normal)
         displayTopCards(for: .hackathon)
     }
 
@@ -107,6 +118,13 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         let interestViewController = InterestsViewController()
         interestViewController.userID = userId
         navigationController?.pushViewController(interestViewController, animated: true)
+    }
+
+    @objc private func handleAcceptRequestsButtonTapped() {
+        swipeButton.setTitleColor(.gray, for: .normal)
+        hackathonButton.setTitleColor(.gray, for: .normal)
+        acceptRequestsButton.setTitleColor(.orange, for: .normal)
+        displayTopCards(for: .acceptRequests)
     }
 
     private func promptUserToSignIn() {
@@ -158,7 +176,6 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         }
     }
 
-
     private func fetchUsersFromDatabase() {
         db.collection("users").getDocuments { [weak self] (snapshot, error) in
             if let error = error {
@@ -197,7 +214,31 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         }
     }
 
-
+    private func fetchAcceptRequests() {
+        guard let currentUserId = Auth.auth().currentUser?.uid else { return }
+        db.collection("accept_requests")
+            .whereField("receiverId", isEqualTo: currentUserId)
+            .getDocuments { [weak self] snapshot, error in
+                if let error = error {
+                    print("Error fetching accept requests: \(error.localizedDescription)")
+                    return
+                }
+                
+                var fetchedRequests: [AcceptRequest] = []
+                snapshot?.documents.forEach { document in
+                    let data = document.data()
+                    let senderId = data["senderId"] as? String ?? ""
+                    let receiverId = data["receiverId"] as? String ?? ""
+                    let timestamp = data["timestamp"] as? Timestamp ?? Timestamp()
+                    let request = AcceptRequest(id: document.documentID, senderId: senderId, receiverId: receiverId, timestamp: timestamp.dateValue())
+                    fetchedRequests.append(request)
+                }
+                self?.acceptRequests = fetchedRequests
+                DispatchQueue.main.async {
+                    self?.displayTopAcceptRequestCards()
+                }
+            }
+    }
 
     private func displayTopCards(for category: Category) {
         cardContainerView.subviews.forEach { $0.removeFromSuperview() }
@@ -208,6 +249,8 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
             cards = eventStack.suffix(3).map { createCard(for: $0) }
         case .hackathon:
             cards = userStack.suffix(3).map { createCard(for: $0) }
+        case .acceptRequests:
+            cards = acceptRequests.suffix(3).map { createCard(for: $0) }
         }
 
         for cardView in cards {
@@ -293,6 +336,16 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         return cardView
     }
 
+    private func createCard(for request: AcceptRequest) -> UIView {
+        let cardView = AcceptRequestCardView(request: request)
+        cardView.translatesAutoresizingMaskIntoConstraints = false
+
+        let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handleRequestSwipe(_:)))
+        cardView.addGestureRecognizer(panGesture)
+
+        return cardView
+    }
+
     private func createButton(imageName: String, tintColor: UIColor) -> UIButton {
         let button = UIButton(type: .system)
         button.setImage(UIImage(systemName: imageName), for: .normal)
@@ -301,6 +354,77 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         button.layer.cornerRadius = 30
         button.translatesAutoresizingMaskIntoConstraints = false
         return button
+    }
+
+    private func bookmarkEvent(for event: EventModel) {
+        bookmarkedEvents.append(event)
+        // Optionally: Save the bookmarked event to a database or UserDefaults
+    }
+
+    private func discardEvent(for event: EventModel) {
+        eventStack.removeAll { $0.eventId == event.eventId }
+        displayTopCards(for: .swipe)
+    }
+
+    private func bookmarkUser(for user: UserDetails) {
+        bookmarkedUsers.append(user)
+        // Optionally: Save the bookmarked user to a database or UserDefaults
+    }
+
+    private func discardUser(for user: UserDetails) {
+        userStack.removeAll { $0.id == user.id }
+        displayTopUserCards()
+    }
+
+    private func animateCardOffScreen(_ cardView: FlippableCardView, toRight: Bool) {
+        UIView.animate(withDuration: 0.5, animations: {
+            cardView.transform = CGAffineTransform(translationX: toRight ? self.view.frame.width : -self.view.frame.width, y: 0)
+            cardView.alpha = 0
+        }) { _ in
+            cardView.removeFromSuperview()
+            if let index = self.eventStack.firstIndex(of: cardView.event) {
+                self.eventStack.remove(at: index)
+            }
+            self.displayTopCards(for: .swipe)
+        }
+    }
+
+    private func animateUserCardOffScreen(_ cardView: UserProfileCardView, toRight: Bool) {
+        UIView.animate(withDuration: 0.5, animations: {
+            cardView.transform = CGAffineTransform(translationX: toRight ? self.view.frame.width : -self.view.frame.width, y: 0)
+            cardView.alpha = 0
+        }) { _ in
+            cardView.removeFromSuperview()
+            if let index = self.userStack.firstIndex(where: { $0.id == cardView.user.id }) {
+                self.userStack.remove(at: index)
+            }
+            self.displayTopUserCards()
+        }
+    }
+    
+    private func displayTopUserCards() {
+        cardContainerView.subviews.forEach { $0.removeFromSuperview() }
+
+        guard !userStack.isEmpty else { return }
+
+        let topUsers = userStack.suffix(3)
+        for user in topUsers {
+            let userCardView = UserProfileCardView(user: user)
+            userCardView.translatesAutoresizingMaskIntoConstraints = false
+            cardContainerView.addSubview(userCardView)
+
+            NSLayoutConstraint.activate([
+                userCardView.topAnchor.constraint(equalTo: cardContainerView.topAnchor),
+                userCardView.bottomAnchor.constraint(equalTo: cardContainerView.bottomAnchor),
+                userCardView.leadingAnchor.constraint(equalTo: cardContainerView.leadingAnchor),
+                userCardView.trailingAnchor.constraint(equalTo: cardContainerView.trailingAnchor)
+            ])
+
+            let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handleUserSwipe(_:)))
+            userCardView.addGestureRecognizer(panGesture)
+
+            cardContainerView.sendSubviewToBack(userCardView)
+        }
     }
 
     @objc private func handleSwipe(_ gesture: UIPanGestureRecognizer) {
@@ -401,79 +525,92 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
         }
     }
 
-    private func bookmarkUser(for user: UserDetails) {
-        bookmarkedUsers.append(user)
-        // Optionally: Save the bookmarked user to a database or UserDefaults
+    @objc private func handleRequestSwipe(_ gesture: UIPanGestureRecognizer) {
+        guard let cardView = gesture.view as? AcceptRequestCardView else { return }
+        let translation = gesture.translation(in: view)
+        let xFromCenter = translation.x
+
+        switch gesture.state {
+        case .began:
+            // Hide the card initially
+            cardView.alpha = 1
+        case .changed:
+            cardView.transform = CGAffineTransform(translationX: xFromCenter, y: 0)
+                .rotated(by: xFromCenter / 200)
+            cardView.alpha = 1 - abs(xFromCenter) / view.frame.width
+        case .ended:
+            if xFromCenter > 100 {
+                acceptRequest(cardView.request)
+                animateCardOffScreen(cardView, toRight: true)
+            } else if xFromCenter < -100 {
+                rejectRequest(cardView.request)
+                animateCardOffScreen(cardView, toRight: false)
+            } else {
+                UIView.animate(withDuration: 0.3) {
+                    cardView.transform = CGAffineTransform.identity
+                    cardView.alpha = 1
+                }
+            }
+        default:
+            UIView.animate(withDuration: 0.3) {
+                cardView.transform = CGAffineTransform.identity
+                cardView.alpha = 1
+            }
+        }
     }
 
-    private func discardUser(for user: UserDetails) {
-        userStack.removeAll { $0.name == user.name }
-        displayTopUserCards()
+    private func acceptRequest(_ request: AcceptRequest) {
+        // Logic to accept the request
+        // Update Firestore or local data as needed
+        acceptRequests.removeAll { $0.id == request.id }
+        displayTopAcceptRequestCards()
     }
 
-    private func animateCardOffScreen(_ cardView: FlippableCardView, toRight: Bool) {
+    private func rejectRequest(_ request: AcceptRequest) {
+        // Logic to reject the request
+        // Update Firestore or local data as needed
+        acceptRequests.removeAll { $0.id == request.id }
+        displayTopAcceptRequestCards()
+    }
+
+    private func animateCardOffScreen(_ cardView: AcceptRequestCardView, toRight: Bool) {
         UIView.animate(withDuration: 0.5, animations: {
             cardView.transform = CGAffineTransform(translationX: toRight ? self.view.frame.width : -self.view.frame.width, y: 0)
             cardView.alpha = 0
         }) { _ in
             cardView.removeFromSuperview()
-            if let index = self.eventStack.firstIndex(of: cardView.event) {
-                self.eventStack.remove(at: index)
-            }
-            self.displayTopCards(for: .swipe)
+            self.displayTopAcceptRequestCards()
         }
     }
 
-    private func animateUserCardOffScreen(_ cardView: UserProfileCardView, toRight: Bool) {
-        UIView.animate(withDuration: 0.5, animations: {
-            cardView.transform = CGAffineTransform(translationX: toRight ? self.view.frame.width : -self.view.frame.width, y: 0)
-            cardView.alpha = 0
-        }) { _ in
-            cardView.removeFromSuperview()
-            if let index = self.userStack.firstIndex(where: { $0.name == cardView.user.name }) {
-                self.userStack.remove(at: index)
-            }
-            self.displayTopUserCards()
+    private func displayTopAcceptRequestCards() {
+        cardContainerView.subviews.forEach { $0.removeFromSuperview() }
+
+        guard !acceptRequests.isEmpty else { return }
+
+        let topRequests = acceptRequests.suffix(3)
+        for request in topRequests {
+            let requestCardView = AcceptRequestCardView(request: request)
+            requestCardView.translatesAutoresizingMaskIntoConstraints = false
+            cardContainerView.addSubview(requestCardView)
+
+            NSLayoutConstraint.activate([
+                requestCardView.topAnchor.constraint(equalTo: cardContainerView.topAnchor),
+                requestCardView.bottomAnchor.constraint(equalTo: cardContainerView.bottomAnchor),
+                requestCardView.leadingAnchor.constraint(equalTo: cardContainerView.leadingAnchor),
+                requestCardView.trailingAnchor.constraint(equalTo: cardContainerView.trailingAnchor)
+            ])
+
+            let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handleRequestSwipe(_:)))
+            requestCardView.addGestureRecognizer(panGesture)
+
+            cardContainerView.sendSubviewToBack(requestCardView)
         }
-    }
-
-    private func bookmarkEvent(for event: EventModel) {
-        bookmarkedEvents.append(event)
-    }
-
-    private func discardEvent(for event: EventModel) {
-        eventStack.removeAll { $0.eventId == event.eventId }
-        displayTopCards(for: .swipe)
     }
 
     private func isFirstTimeUser() -> Bool {
         // Implement logic to check if it's the first time user
         return false
-    }
-
-    private func displayTopUserCards() {
-        cardContainerView.subviews.forEach { $0.removeFromSuperview() }
-
-        guard !userStack.isEmpty else { return }
-
-        let topUsers = userStack.suffix(3)
-        for user in topUsers {
-            let userCardView = UserProfileCardView(user: user)
-            userCardView.translatesAutoresizingMaskIntoConstraints = false
-            cardContainerView.addSubview(userCardView)
-
-            NSLayoutConstraint.activate([
-                userCardView.topAnchor.constraint(equalTo: cardContainerView.topAnchor),
-                userCardView.bottomAnchor.constraint(equalTo: cardContainerView.bottomAnchor),
-                userCardView.leadingAnchor.constraint(equalTo: cardContainerView.leadingAnchor),
-                userCardView.trailingAnchor.constraint(equalTo: cardContainerView.trailingAnchor)
-            ])
-
-            let panGesture = UIPanGestureRecognizer(target: self, action: #selector(handleUserSwipe(_:)))
-            userCardView.addGestureRecognizer(panGesture)
-
-            cardContainerView.sendSubviewToBack(userCardView)
-        }
     }
 
     private func askForTutorial() {
@@ -532,7 +669,10 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
 enum Category {
     case swipe
     case hackathon
+    case acceptRequests
 }
+           
+
 
 
 class UserProfileCardView: UIView {
@@ -549,6 +689,7 @@ class UserProfileCardView: UIView {
     var techStackTitleLabel: UILabel!
     var techStackView: UIView!
     var techStackGridView: UIStackView!
+    private let db = Firestore.firestore()
 
     init(user: UserDetails) {
         self.user = user
