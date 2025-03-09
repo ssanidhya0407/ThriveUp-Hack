@@ -982,6 +982,7 @@ class EditProfileViewController: UIViewController, UIImagePickerControllerDelega
                 guard let url = url else { return }
 
                 let details = UserDetails(
+                    id: userId,
                     name: updatedName,
                     description: updatedDescription,
                     imageUrl: url.absoluteString, contact: updatedContact,

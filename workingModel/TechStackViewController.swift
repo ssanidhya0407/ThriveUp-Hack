@@ -8,15 +8,18 @@ class TechStackViewController: UIViewController, UICollectionViewDelegate, UICol
     var userID: String?
     var selectedTechStack = [String]()
     var onSave: (([String]) -> Void)?
-    private let maxSelection = 6
+    private let maxSelection = 10
 
     // Data structure for tech stack
     private let techStack: [String: [String]] = [
         "🍏 Apple": ["Swift 🍎", "Objective-C 📚", "Xcode 🛠", "CocoaPods 📦"],
-        "💻 Coding Languages": ["Python 🐍", "Java ☕️", "JavaScript 🌐", "C++ 💻", "C# 🎮", "Ruby 💎", "Go 🚀"],
-        "🔧 Frameworks": ["React ⚛️", "Angular 🅰️", "Vue.js 🖖", "Django 🌿", "Spring 🌱", "Rails 🚂"],
-        "🛠 Tools": ["Git 🔧", "Docker 🐳", "Kubernetes ☸️", "Jenkins 🏗", "Azure DevOps ☁️"],
-        "📊 Databases": ["MySQL 🐬", "PostgreSQL 🐘", "MongoDB 🍃", "Firebase 🔥", "SQLite 🗃"]
+        "💻 Coding Languages": ["Python 🐍", "Java ☕️", "JavaScript 🌐", "C++ 💻", "C# 🎮", "Ruby 💎", "Go 🚀", "Kotlin ☕️", "Dart 🎯", "Rust 🦀", "TypeScript 📜", "PHP 🐘", "Scala 🐱", "Haskell 🔢"],
+        "🔧 Frameworks": ["React ⚛️", "Angular 🅰️", "Vue.js 🖖", "Django 🌿", "Spring 🌱", "Rails 🚂", "Flutter 🦋", "Laravel 🌐", "Express 🚂", "ASP.NET 🖥", "Svelte 🎨", "Next.js ⏭", "Nuxt.js ⏮"],
+        "🛠 Tools": ["Git 🔧", "Docker 🐳", "Kubernetes ☸️", "Jenkins 🏗", "Azure DevOps ☁️", "Terraform 🌍", "Ansible 🛡", "Gradle 📦", "Maven 📦", "Travis CI 🔧", "CircleCI 🔄", "Vagrant 📦", "Webpack 📦"],
+        "📊 Databases": ["MySQL 🐬", "PostgreSQL 🐘", "MongoDB 🍃", "Firebase 🔥", "SQLite 🗃", "Redis 🧠", "Cassandra 🌿", "Oracle 🏛", "SQL Server 🗄", "DynamoDB 🌩", "MariaDB 🐬", "Neo4j 🌐", "Elasticsearch 🔍"],
+        "🌐 Web Technologies": ["HTML5 🌐", "CSS3 🎨", "Sass 🎨", "Less 🎨", "Bootstrap 🅱️", "Tailwind CSS 🌬", "jQuery 💻", "GraphQL 🔍", "REST API 🌐", "WebAssembly 🕸"],
+        "📱 Mobile Development": ["SwiftUI 📱", "React Native ⚛️", "Flutter 🦋", "Kotlin/Native ☕️", "Xamarin 📱", "Ionic 🌐", "Cordova 🌐"],
+        "☁️ Cloud Services": ["AWS ☁️", "Azure ☁️", "Google Cloud ☁️", "Heroku ☁️", "Netlify 🌐", "Vercel 🌐", "Firebase 🔥", "DigitalOcean ☁️", "Linode ☁️"]
     ]
 
     private var collectionView: UICollectionView!
@@ -32,7 +35,7 @@ class TechStackViewController: UIViewController, UICollectionViewDelegate, UICol
 
     private let subHeaderLabel: UILabel = {
         let label = UILabel()
-        label.text = "Pick up to 6 tools, languages, or frameworks you use. It’ll help you showcase your skills."
+        label.text = "Pick exactly 10 tools, languages, or frameworks you use. It’ll help you showcase your skills."
         label.font = UIFont.systemFont(ofSize: 16)
         label.textColor = .darkGray
         label.numberOfLines = 0
@@ -42,7 +45,7 @@ class TechStackViewController: UIViewController, UICollectionViewDelegate, UICol
 
     private let selectionLabel: UILabel = {
         let label = UILabel()
-        label.text = "0/6 selected"
+        label.text = "0/10 selected"
         label.font = UIFont.systemFont(ofSize: 16)
         label.textColor = .darkGray
         label.textAlignment = .right
@@ -68,8 +71,14 @@ class TechStackViewController: UIViewController, UICollectionViewDelegate, UICol
         setupHeader()
         setupCollectionView()
         setupConstraints()
-        
-        fetchSavedTechStack()
+
+        // Initialize selection label
+        selectionLabel.text = "0/\(maxSelection) selected"
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        fetchSavedTechStack() // Fetch the tech stack every time the view appears
     }
 
     private func setupHeader() {
@@ -136,7 +145,13 @@ class TechStackViewController: UIViewController, UICollectionViewDelegate, UICol
     }
 
     @objc private func saveButtonTapped() {
-        saveTechStackToFirestore()
+        if selectedTechStack.count == maxSelection {
+            saveTechStackToFirestore()
+        } else {
+            let alert = UIAlertController(title: "Selection Incomplete", message: "Please select exactly \(maxSelection) items before saving.", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+            present(alert, animated: true, completion: nil)
+        }
     }
 
     private func saveTechStackToFirestore() {
@@ -154,7 +169,7 @@ class TechStackViewController: UIViewController, UICollectionViewDelegate, UICol
                 return
             }
             print("Tech stack saved successfully.") // Debugging statement
-            
+
             // Show an alert controller confirming the tech stack has been saved
             let alertController = UIAlertController(title: "Success", message: "Your tech stack has been saved.", preferredStyle: .alert)
             alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: { [weak self] _ in
@@ -184,8 +199,18 @@ class TechStackViewController: UIViewController, UICollectionViewDelegate, UICol
                 return
             }
 
-            self?.selectedTechStack = data["techStack"] as? [String] ?? []
-            self?.selectionLabel.text = "\(self?.selectedTechStack.count ?? 0)/\(self?.maxSelection ?? 6) selected"
+            // Clear the selectedTechStack array to avoid duplication
+            self?.selectedTechStack.removeAll()
+            
+            // Fetch the tech stack from the document
+            if let fetchedTechStack = data["techStack"] as? [String] {
+                self?.selectedTechStack = fetchedTechStack.filter { !$0.isEmpty }
+            }
+            
+            // Update the selection label
+            self?.selectionLabel.text = "\(self?.selectedTechStack.count ?? 0)/\(self?.maxSelection ?? 10) selected"
+            
+            // Reload the collection view to reflect the updated selections
             self?.collectionView.reloadData()
         }
     }
@@ -213,6 +238,10 @@ class TechStackViewController: UIViewController, UICollectionViewDelegate, UICol
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         let category = Array(techStack.keys)[indexPath.section]
         let selectedItem = techStack[category]?[indexPath.row] ?? ""
+
+        if selectedItem.isEmpty {
+            return
+        }
 
         if let index = selectedTechStack.firstIndex(of: selectedItem) {
             selectedTechStack.remove(at: index)

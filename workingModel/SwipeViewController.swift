@@ -2,6 +2,7 @@ import UIKit
 import Instructions
 import FirebaseFirestore
 import FirebaseAuth
+import FirebaseStorage
 
 class SwipeViewController: UIViewController, CoachMarksControllerDataSource, CoachMarksControllerDelegate {
     private var eventStack: [EventModel] = []
@@ -169,7 +170,7 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
 
             snapshot?.documents.forEach { document in
                 let data = document.data()
-                
+                let id = document.documentID
                 let name = data["name"] as? String ?? ""
                 let description = data["Description"] as? String ?? "No Description Available"
                 let imageUrl = data["profileImageURL"] as? String ?? ""
@@ -179,6 +180,7 @@ class SwipeViewController: UIViewController, CoachMarksControllerDataSource, Coa
                 let contact = data["ContactDetails"] as? String ?? "Not Available"
 
                 let user = UserDetails(
+                    id: id,
                     name: name,
                     description: description,
                     imageUrl: imageUrl,
@@ -533,19 +535,19 @@ enum Category {
 }
 
 
+
 class UserProfileCardView: UIView {
-    let user: UserDetails
+    var user: UserDetails
     var bookmarkButton: UIButton?
     var discardButton: UIButton?
     var profileImageView: UIImageView!
     var nameLabel: UILabel!
-    var descriptionLabel: UILabel!
-    var githubLabel: UILabel!
-    var linkedInLabel: UILabel!
-    var githubButton: UIButton!
-    var linkedInButton: UIButton!
+    var aboutTitleLabel: UILabel!
+    var aboutLabel: UILabel!
+    var githubTabView: UIView!
+    var linkedInTabView: UIView!
+    var socialProfilesTitleLabel: UILabel!
     var techStackTitleLabel: UILabel!
-    var techStackLabel: UILabel!
     var techStackView: UIView!
     var techStackGridView: UIStackView!
 
@@ -553,6 +555,7 @@ class UserProfileCardView: UIView {
         self.user = user
         super.init(frame: .zero)
         setupViews()
+        fetchUserDetails()
     }
 
     required init?(coder: NSCoder) {
@@ -589,32 +592,23 @@ class UserProfileCardView: UIView {
         nameLabel.font = UIFont.systemFont(ofSize: 28, weight: .bold)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        descriptionLabel = UILabel()
-        descriptionLabel.text = user.description
-        descriptionLabel.font = UIFont.systemFont(ofSize: 16)
-        descriptionLabel.numberOfLines = 0
-        descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
+        aboutTitleLabel = UILabel()
+        aboutTitleLabel.text = "About"
+        aboutTitleLabel.font = UIFont.systemFont(ofSize: 22, weight: .bold)
+        aboutTitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        githubLabel = UILabel()
-        githubLabel.text = "GitHub: "
-        githubLabel.font = UIFont.systemFont(ofSize: 16)
-        githubLabel.textColor = .blue
-        githubLabel.translatesAutoresizingMaskIntoConstraints = false
-        githubLabel.isUserInteractionEnabled = true
-        let githubTapGesture = UITapGestureRecognizer(target: self, action: #selector(openGithubUrl))
-        githubLabel.addGestureRecognizer(githubTapGesture)
+        aboutLabel = UILabel()
+        aboutLabel.font = UIFont.systemFont(ofSize: 16)
+        aboutLabel.numberOfLines = 0
+        aboutLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        linkedInLabel = UILabel()
-        linkedInLabel.text = "LinkedIn: "
-        linkedInLabel.font = UIFont.systemFont(ofSize: 16)
-        linkedInLabel.textColor = .blue
-        linkedInLabel.translatesAutoresizingMaskIntoConstraints = false
-        linkedInLabel.isUserInteractionEnabled = true
-        let linkedInTapGesture = UITapGestureRecognizer(target: self, action: #selector(openLinkedInUrl))
-        linkedInLabel.addGestureRecognizer(linkedInTapGesture)
+        socialProfilesTitleLabel = UILabel()
+        socialProfilesTitleLabel.text = "Social Profiles"
+        socialProfilesTitleLabel.font = UIFont.systemFont(ofSize: 22, weight: .bold)
+        socialProfilesTitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        githubButton = createIconButton(imageName: "logo.github", url: user.githubUrl ?? "")
-        linkedInButton = createIconButton(imageName: "logo.linkedin", url: user.linkedinUrl ?? "")
+        githubTabView = createTabView(iconName: "logo.github", title: "GitHub", url: user.githubUrl ?? "")
+        linkedInTabView = createTabView(iconName: "logo.linkedin", title: "LinkedIn", url: user.linkedinUrl ?? "")
 
         techStackTitleLabel = UILabel()
         techStackTitleLabel.text = "Tech Stack"
@@ -632,11 +626,11 @@ class UserProfileCardView: UIView {
 
         addSubview(profileImageView)
         addSubview(nameLabel)
-        addSubview(descriptionLabel)
-        addSubview(githubLabel)
-        addSubview(linkedInLabel)
-        addSubview(githubButton)
-        addSubview(linkedInButton)
+        addSubview(aboutTitleLabel)
+        addSubview(aboutLabel)
+        addSubview(socialProfilesTitleLabel)
+        addSubview(githubTabView)
+        addSubview(linkedInTabView)
         addSubview(techStackTitleLabel)
         addSubview(techStackView)
         techStackView.addSubview(techStackGridView)
@@ -647,23 +641,33 @@ class UserProfileCardView: UIView {
             profileImageView.widthAnchor.constraint(equalToConstant: 80),
             profileImageView.heightAnchor.constraint(equalToConstant: 80),
 
-            nameLabel.topAnchor.constraint(equalTo: profileImageView.bottomAnchor, constant: 8),
-            nameLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            nameLabel.centerYAnchor.constraint(equalTo: profileImageView.centerYAnchor),
+            nameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 16),
             nameLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
 
-            descriptionLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 8),
-            descriptionLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            descriptionLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            aboutTitleLabel.topAnchor.constraint(equalTo: profileImageView.bottomAnchor, constant: 16),
+            aboutTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            aboutTitleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
 
-            githubLabel.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 16),
-            githubLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            githubLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            aboutLabel.topAnchor.constraint(equalTo: aboutTitleLabel.bottomAnchor, constant: 8),
+            aboutLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            aboutLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
 
-            linkedInLabel.topAnchor.constraint(equalTo: githubLabel.bottomAnchor, constant: 8),
-            linkedInLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            linkedInLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            socialProfilesTitleLabel.topAnchor.constraint(equalTo: aboutLabel.bottomAnchor, constant: 16),
+            socialProfilesTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            socialProfilesTitleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
 
-            techStackTitleLabel.topAnchor.constraint(equalTo: linkedInLabel.bottomAnchor, constant: 32),
+            githubTabView.topAnchor.constraint(equalTo: socialProfilesTitleLabel.bottomAnchor, constant: 8),
+            githubTabView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            githubTabView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            githubTabView.heightAnchor.constraint(equalToConstant: 44),
+
+            linkedInTabView.topAnchor.constraint(equalTo: githubTabView.bottomAnchor, constant: 8),
+            linkedInTabView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            linkedInTabView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            linkedInTabView.heightAnchor.constraint(equalToConstant: 44),
+
+            techStackTitleLabel.topAnchor.constraint(equalTo: linkedInTabView.bottomAnchor, constant: 32),
             techStackTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
             techStackTitleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
 
@@ -709,36 +713,129 @@ class UserProfileCardView: UIView {
     }
 
     @objc private func enlargeProfileImage() {
-        // Implement the logic to enlarge the profile image when tapped
-    }
-
-    private func createIconButton(imageName: String, url: String) -> UIButton {
-        let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: imageName), for: .normal)
-        button.tintColor = .black
-        button.backgroundColor = UIColor(white: 1, alpha: 0.75)
-        button.layer.cornerRadius = 20
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.addTarget(self, action: #selector(openURL(_:)), for: .touchUpInside)
-        button.accessibilityLabel = url
-        return button
-    }
-
-    @objc private func openURL(_ sender: UIButton) {
-        if let urlString = sender.accessibilityLabel, let url = URL(string: urlString) {
-            UIApplication.shared.open(url)
+        guard let imageView = profileImageView else { return }
+        
+        // Create a new view controller to present the enlarged image
+        let enlargedImageViewController = UIViewController()
+        enlargedImageViewController.view.backgroundColor = .black
+        
+        // Create an image view to display the enlarged image
+        let enlargedImageView = UIImageView(image: imageView.image)
+        enlargedImageView.contentMode = .scaleAspectFit
+        enlargedImageView.frame = enlargedImageViewController.view.frame
+        enlargedImageViewController.view.addSubview(enlargedImageView)
+        
+        // Add a tap gesture to dismiss the enlarged image view
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissEnlargedImage))
+        enlargedImageViewController.view.addGestureRecognizer(tapGesture)
+        
+        // Present the view controller
+        if let topViewController = UIApplication.shared.keyWindow?.rootViewController {
+            topViewController.present(enlargedImageViewController, animated: true, completion: nil)
         }
     }
 
-    @objc private func openGithubUrl() {
-        if let url = URL(string: user.githubUrl ?? "") {
-            UIApplication.shared.open(url)
+    @objc private func dismissEnlargedImage(_ sender: UITapGestureRecognizer) {
+        sender.view?.window?.rootViewController?.dismiss(animated: true, completion: nil)
+    }
+
+    private func createTabView(iconName: String, title: String, url: String) -> UIView {
+        let tabView = UIView()
+        tabView.backgroundColor = .white
+        tabView.layer.cornerRadius = 8
+        tabView.layer.borderWidth = 1
+        tabView.layer.borderColor = UIColor.lightGray.cgColor
+        tabView.translatesAutoresizingMaskIntoConstraints = false
+
+        let iconImageView = UIImageView()
+        iconImageView.tintColor = .black
+        iconImageView.translatesAutoresizingMaskIntoConstraints = false
+
+        let titleLabel = UILabel()
+        titleLabel.text = title
+        titleLabel.font = UIFont.systemFont(ofSize: 16)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        tabView.addSubview(iconImageView)
+        tabView.addSubview(titleLabel)
+
+        NSLayoutConstraint.activate([
+            iconImageView.leadingAnchor.constraint(equalTo: tabView.leadingAnchor, constant: 16),
+            iconImageView.centerYAnchor.constraint(equalTo: tabView.centerYAnchor),
+            iconImageView.widthAnchor.constraint(equalToConstant: 24),
+            iconImageView.heightAnchor.constraint(equalToConstant: 24),
+
+            titleLabel.leadingAnchor.constraint(equalTo: iconImageView.trailingAnchor, constant: 16),
+            titleLabel.centerYAnchor.constraint(equalTo: tabView.centerYAnchor)
+        ])
+
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(openURL(_:)))
+        tabView.addGestureRecognizer(tapGesture)
+        tabView.accessibilityLabel = url
+
+        // Fetch and set the icon image
+        fetchIconImage(named: iconName) { image in
+            iconImageView.image = image
+        }
+
+        return tabView
+    }
+
+    private func fetchIconImage(named iconName: String, completion: @escaping (UIImage?) -> Void) {
+        let storageRef = Storage.storage().reference().child("logo_images/\(iconName).png")
+        storageRef.getData(maxSize: 1 * 1024 * 1024) { data, error in
+            if let error = error {
+                print("Error fetching image: \(error.localizedDescription)")
+                completion(nil)
+                return
+            }
+            if let data = data, let image = UIImage(data: data) {
+                completion(image)
+            } else {
+                completion(nil)
+            }
         }
     }
 
-    @objc private func openLinkedInUrl() {
-        if let url = URL(string: user.linkedinUrl ?? "") {
-            UIApplication.shared.open(url)
+    @objc private func openURL(_ sender: UITapGestureRecognizer) {
+        if let urlString = sender.view?.accessibilityLabel, var urlWithScheme = URL(string: urlString) {
+            if !urlString.hasPrefix("http") {
+                urlWithScheme = URL(string: "https://\(urlString)")!
+            }
+            UIApplication.shared.open(urlWithScheme)
+        }
+    }
+
+    private func fetchUserDetails() {
+        print("Fetching user details for user: \(user.id)")
+        let db = Firestore.firestore()
+        db.collection("users").document(user.id).getDocument { [weak self] document, error in
+            if let error = error {
+                print("Error fetching user data: \(error.localizedDescription)")
+                return
+            }
+
+            guard let document = document, document.exists, let data = document.data() else {
+                print("No user data found for user \(self?.user.id ?? "")")
+                return
+            }
+
+            if let githubUrl = data["githubUrl"] as? String {
+                print("Fetched GitHub URL: \(githubUrl)")
+                self?.user.githubUrl = githubUrl
+                self?.githubTabView.accessibilityLabel = githubUrl
+            }
+
+            if let linkedInUrl = data["linkedinUrl"] as? String {
+                print("Fetched LinkedIn URL: \(linkedInUrl)")
+                self?.user.linkedinUrl = linkedInUrl
+                self?.linkedInTabView.accessibilityLabel = linkedInUrl
+            }
+
+            if let about = data["Description"] as? String {
+                print("Fetched description: \(about)")
+                self?.aboutLabel.text = about
+            }
         }
     }
 }
@@ -754,6 +851,7 @@ extension UIImageView {
         }
     }
 }
+
 
 
 

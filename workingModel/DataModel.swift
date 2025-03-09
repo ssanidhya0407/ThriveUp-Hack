@@ -316,12 +316,13 @@ struct Event: Codable {
 }
 
 struct UserDetails {
+    let id: String 
     let name: String
     let description: String
     let imageUrl: String
     let contact: String?
-    let githubUrl: String?  // Add this property
-    let linkedinUrl: String?  // Add this property
+    var githubUrl: String?  // Add this property
+    var linkedinUrl: String?  // Add this property
     let techStack: String
 }
 
